@@ -58,6 +58,7 @@ async function getInstallationToken(installationId) {
                 "Accept": "application/vnd.github+json",
                 "Authorization": `Bearer ${appJWT}`,
                 "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "CodeLens"
             },
         });
     } catch (err) {
@@ -97,12 +98,38 @@ async function getInstallationToken(installationId) {
 export async function createGitHubService(installationId) {
     logger.step(`createGitHubService — installationId: ${installationId}`);
 
+    logger.info("Testing GitHub connectivity...");
+
+    try {
+
+        const testResponse = await fetch("https://api.github.com", {
+            headers: {
+                "User-Agent": "CodeLens"
+            }
+        });
+
+        logger.info("GitHub connectivity test", {
+            status: testResponse.status,
+            statusText: testResponse.statusText
+        });
+
+    } catch (error) {
+
+        logger.error("GitHub connectivity test failed", {
+            message: error.message,
+            name: error.name
+        });
+
+    }
+
+
     const installationToken = await getInstallationToken(installationId);
 
     const headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": `Bearer ${installationToken}`,
         "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "CodeLens"
     };
 
 
