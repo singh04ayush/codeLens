@@ -1,45 +1,14 @@
-const COLORS = {
-    reset: "\x1b[0m",
-    bright: "\x1b[1m",
-    dim: "\x1b[2m",
-
-    red: "\x1b[31m",
-    green: "\x1b[32m",
-    yellow: "\x1b[33m",
-    blue: "\x1b[34m",
-    magenta: "\x1b[35m",
-    cyan: "\x1b[36m",
-    white: "\x1b[37m",
-    gray: "\x1b[90m",
-};
-
-
 function timestamp() {
     return new Date().toISOString();
 }
 
-
-function fmt(color, label, message, data) {
-    const prefix = `${COLORS.gray}[${timestamp()}]${COLORS.reset} ${color}${COLORS.bright}[${label}]${COLORS.reset}`;
-    if (data !== undefined) {
-        console.log(`${prefix} ${message}`);
-        console.log(
-            `${COLORS.dim}${JSON.stringify(data, null, 2)}${COLORS.reset}`
-        );
-    } else {
-        console.log(`${prefix} ${message}`);
-    }
-}
-
-
 const logger = {
-    info:    (msg, data) => fmt(COLORS.cyan,    "INFO   ", msg, data),
-    success: (msg, data) => fmt(COLORS.green,   "SUCCESS", msg, data),
-    warn:    (msg, data) => fmt(COLORS.yellow,  "WARN   ", msg, data),
-    error:   (msg, data) => fmt(COLORS.red,     "ERROR  ", msg, data),
-    debug:   (msg, data) => fmt(COLORS.magenta, "DEBUG  ", msg, data),
-    step:    (msg, data) => fmt(COLORS.blue,    "STEP   ", msg, data),
+    info:    (msg, data) => data !== undefined ? console.log(`[${timestamp()}] [INFO]    ${msg}`, JSON.stringify(data, null, 2)) : console.log(`[${timestamp()}] [INFO]    ${msg}`),
+    success: (msg, data) => data !== undefined ? console.log(`[${timestamp()}] [SUCCESS] ${msg}`, JSON.stringify(data, null, 2)) : console.log(`[${timestamp()}] [SUCCESS] ${msg}`),
+    warn:    (msg, data) => data !== undefined ? console.warn(`[${timestamp()}] [WARN]    ${msg}`, JSON.stringify(data, null, 2)) : console.warn(`[${timestamp()}] [WARN]    ${msg}`),
+    error:   (msg, data) => data !== undefined ? console.error(`[${timestamp()}] [ERROR]   ${msg}`, JSON.stringify(data, null, 2)) : console.error(`[${timestamp()}] [ERROR]   ${msg}`),
+    debug:   (msg, data) => data !== undefined ? console.log(`[${timestamp()}] [DEBUG]   ${msg}`, JSON.stringify(data, null, 2)) : console.log(`[${timestamp()}] [DEBUG]   ${msg}`),
+    step:    (msg, data) => data !== undefined ? console.log(`[${timestamp()}] [STEP]    ${msg}`, JSON.stringify(data, null, 2)) : console.log(`[${timestamp()}] [STEP]    ${msg}`),
 };
-
 
 export default logger;
