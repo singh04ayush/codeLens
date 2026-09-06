@@ -1,11 +1,27 @@
 import OpenAI from "openai";
+import logger from "../utils/logger.js";
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: process.env.OPENAI_API_KEY,
 });
 
 
 export async function analyzeWithAI(data) {
+
+    logger.step("analyzeWithAI — building prompt");
+
+    if (!process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY is not set in environment");
+    }
+
+    if (!process.env.OPENAI_MODEL) {
+        throw new Error("OPENAI_MODEL is not set in environment");
+    }
+
+    logger.info("OpenAI config", {
+        model: process.env.OPENAI_MODEL,
+        apiKeyPreview: process.env.OPENAI_API_KEY?.slice(0, 12) + "...",
+    });
 
     const prompt = `
 You are CodeLens, an AI-powered GitHub Pull Request reviewer.
@@ -101,20 +117,56 @@ Briefly explain the estimate.
 Keep the final response concise and useful.
 `;
 
-    const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL,
-
-        messages: [
-            {
-                role: "system",
-                content: "You are a senior software engineer specializing in code review, security, architecture and maintainability."
-            },
-            {
-                role: "user",
-                content: prompt
-            }
-        ]
+    logger.info("Prompt built", {
+        promptLength: prompt.length,
+        estimatedTokens: Math.ceil(prompt.length / 4),
     });
 
-    return response.choices[0].message.content;
+    logger.step("Calling openai.chat.completions.create...");
+
+    let response;
+    try {
+        response = await openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL,
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a senior software engineer specializing in code review, security, architecture and maintainability.",
+                },
+                {
+                    role: "user",
+                    content: prompt,
+                },
+            ],
+        });
+    } catch (err) {
+        logger.error("openai.chat.completions.create threw an error", {
+            message: err.message,
+            status: err.status,
+            code: err.code,
+            type: err.type,
+        });
+        throw err;
+    }
+
+    logger.debug("OpenAI raw response", {
+        id: response.id,
+        model: response.model,
+        usage: response.usage,
+        finishReason: response.choices?.[0]?.finish_reason,
+    });
+
+    const content = response.choices?.[0]?.message?.content;
+
+    if (!content) {
+        logger.error("OpenAI returned an empty response", { response });
+        throw new Error("OpenAI returned empty content");
+    }
+
+    logger.success("OpenAI response received", {
+        length: content.length,
+        preview: content.slice(0, 300),
+    });
+
+    return content;
 }
