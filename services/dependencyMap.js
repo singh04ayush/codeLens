@@ -4,7 +4,7 @@ export function buildDependencyMap(files) {
 
     for (const file of files) {
 
-        const imports = extractImports(file.patch);
+        const imports = extractImports(file.patch ?? "");
 
         map[file.filename] = imports;
     }

@@ -101,14 +101,20 @@ Briefly explain the estimate.
 Keep the final response concise and useful.
 `;
 
-    const response = await openai.responses.create({
+    const response = await openai.chat.completions.create({
         model: process.env.OPENAI_MODEL,
 
-        instructions:
-            "You are a senior software engineer specializing in code review, security, architecture and maintainability.",
-
-        input: prompt
+        messages: [
+            {
+                role: "system",
+                content: "You are a senior software engineer specializing in code review, security, architecture and maintainability."
+            },
+            {
+                role: "user",
+                content: prompt
+            }
+        ]
     });
 
-    return response.output_text;
+    return response.choices[0].message.content;
 }
