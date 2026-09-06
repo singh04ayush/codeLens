@@ -10,7 +10,7 @@ const app = express();
 
 app.use(cors({ origin: '*' }))
 
-app.use("/api/github-webhooks", webhookRoutes);
+app.use("/api", webhookRoutes);
 
 app.get('/', (req, res) => {
     res.send('CodeLens Server Working')
