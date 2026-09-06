@@ -4,9 +4,9 @@ import verifyGithubSignature from "../middleware/verifyGithubSignature.js";
 
 const webhookRouter = express.Router();
 
-webhookRouter.post("/github-webhooks", (req, res) => {
-    console.log("HEADERS:", req.headers);
-    console.log("BODY:", req.body);
+webhookRouter.post("/github-weebhooks", rawBodyMiddleware, verifyGithubSignature, (req, res) => {
+    console.log("Webhook verified");
+    console.log(req.body);
 
     res.sendStatus(200);
 });
