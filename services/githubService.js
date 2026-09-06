@@ -14,7 +14,7 @@ function generateAppJWT() {
 
     return jwt.sign(
         payload,
-        process.env.GITHUB_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        process.env.GITHUB_PRIVATE_KEY,
         {
             algorithm: "RS256"
         }
