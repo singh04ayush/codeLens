@@ -43,14 +43,32 @@ async function getInstallationToken(installationId) {
     const url = `${GITHUB_API}/app/installations/${installationId}/access_tokens`;
     logger.info("Requesting installation access token", { url });
 
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Accept": "application/vnd.github+json",
-            "Authorization": `Bearer ${appJWT}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+        controller.abort();
+        logger.error("Installation token request timed out after 15s", { url });
+    }, 15000);
+
+    let response;
+    try {
+        response = await fetch(url, {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+                "Accept": "application/vnd.github+json",
+                "Authorization": `Bearer ${appJWT}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        });
+    } catch (err) {
+        logger.error("fetch() threw during installation token request", {
+            message: err.message,
+            name: err.name,
+        });
+        throw err;
+    } finally {
+        clearTimeout(timeout);
+    }
 
     logger.debug("Installation token response", {
         status: response.status,
@@ -91,13 +109,32 @@ export async function createGitHubService(installationId) {
     async function githubRequest(url, options = {}) {
         logger.info(`GitHub API request: ${options.method || "GET"} ${url}`);
 
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                ...headers,
-                ...(options.headers || {}),
-            },
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            controller.abort();
+            logger.error(`GitHub API request timed out after 15s`, { url });
+        }, 15000);
+
+        let response;
+        try {
+            response = await fetch(url, {
+                ...options,
+                signal: controller.signal,
+                headers: {
+                    ...headers,
+                    ...(options.headers || {}),
+                },
+            });
+        } catch (err) {
+            logger.error("fetch() threw during GitHub API request", {
+                url,
+                message: err.message,
+                name: err.name,
+            });
+            throw err;
+        } finally {
+            clearTimeout(timeout);
+        }
 
         logger.debug("GitHub API response", {
             url,
