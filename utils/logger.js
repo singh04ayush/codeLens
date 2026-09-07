@@ -31,10 +31,12 @@ const logger = {
         console.warn(`[${timestamp()}] ⚠️  ${msg}${extra}`);
     },
 
-    // Errors (red)
+    // Errors (red) — written to both stdout and stderr so they appear in all log viewers
     error(msg, meta) {
         const extra = meta ? ` ${JSON.stringify(meta)}` : "";
-        console.error(`[${timestamp()}] ❌ ${msg}${extra}`);
+        const line = `[${timestamp()}] ❌ ${msg}${extra}`;
+        console.log(line);
+        console.error(line);
     },
 
     // Verbose debug details (grey — only useful when tailing logs closely)
