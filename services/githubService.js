@@ -3,22 +3,25 @@ import axios from "axios";
 import logger from "../utils/logger.js";
 
 
-// Axios instance pre-configured for GitHub API.
-// Uses Node's native http stack — bypasses octokit's fetch-based
-// request layer which hangs on this Lambda runtime.
-const githubAxios = axios.create({
-    baseURL: "https://api.github.com",
-    timeout: 15000,
-    headers: {
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28"
-    }
-});
+// Helper: creates a fresh AbortSignal that times out after `ms` milliseconds.
+// AbortSignal.timeout() is the correct octokit v5 cancellation mechanism —
+// the legacy `request: { timeout }` option is silently ignored in v5.
+function signal(ms) {
+    return AbortSignal.timeout(ms);
+}
 
 
 export async function createGitHubService(installationId) {
 
-    // Create a fresh App per-invocation (avoids stale Lambda module-level state).
+    // ⚠️  Intentionally created INSIDE this function, not at module scope.
+    //
+    //     On Lambda (and similar serverless runtimes) the process is "frozen"
+    //     between invocations. A module-level Octokit App instance caches HTTP
+    //     connection state that becomes stale after thawing, causing every
+    //     subsequent `octokit.request()` to hang indefinitely.
+    //
+    //     Creating the App per-invocation ensures a fresh connection pool each
+    //     time and is cheap — the App constructor is synchronous.
     const octokitApp = new App({
         appId: process.env.GITHUB_APP_ID,
         privateKey: process.env.GITHUB_AUTH_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -29,7 +32,6 @@ export async function createGitHubService(installationId) {
 
     logger.step("createGitHubService — fetching installation token", { installationId });
 
-    // We only use octokit for token exchange — all subsequent calls go through axios.
     const octokit = await octokitApp.getInstallationOctokit(installationId);
     const { token } = await octokit.auth({ type: "installation", installationId });
 
@@ -43,9 +45,16 @@ export async function createGitHubService(installationId) {
 
         async getPullRequest(owner, repo, prNumber) {
             logger.debug("GitHub API → GET pull request", { owner, repo, prNumber });
-            const { data } = await githubAxios.get(
-                `/repos/${owner}/${repo}/pulls/${prNumber}`,
-                { headers: authHeader }
+
+            const { data } = await octokit.request(
+                "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+                {
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { signal: signal(10000) }
+                }
             );
             logger.debug("Pull request fetched", { title: data.title, state: data.state });
             return data;
@@ -54,9 +63,16 @@ export async function createGitHubService(installationId) {
 
         async getPullRequestFiles(owner, repo, prNumber) {
             logger.debug("GitHub API → GET PR files", { owner, repo, prNumber });
-            const { data } = await githubAxios.get(
-                `/repos/${owner}/${repo}/pulls/${prNumber}/files`,
-                { headers: authHeader }
+
+            const { data } = await octokit.request(
+                "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+                {
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { signal: signal(10000) }
+                }
             );
             logger.debug("PR files fetched", { count: data.length });
             return data;
@@ -65,9 +81,16 @@ export async function createGitHubService(installationId) {
 
         async getPullRequestCommits(owner, repo, prNumber) {
             logger.debug("GitHub API → GET PR commits", { owner, repo, prNumber });
-            const { data } = await githubAxios.get(
-                `/repos/${owner}/${repo}/pulls/${prNumber}/commits`,
-                { headers: authHeader }
+
+            const { data } = await octokit.request(
+                "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
+                {
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { signal: signal(10000) }
+                }
             );
             logger.debug("PR commits fetched", { count: data.length });
             return data;
@@ -76,10 +99,17 @@ export async function createGitHubService(installationId) {
 
         async createComment(owner, repo, prNumber, body) {
             logger.step("GitHub API → POST comment on PR", { owner, repo, prNumber });
-            const { data } = await githubAxios.post(
-                `/repos/${owner}/${repo}/issues/${prNumber}/comments`,
-                { body },
-                { headers: authHeader }
+
+            const { data } = await octokit.request(
+                "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+                {
+                    owner,
+                    repo,
+                    issue_number: prNumber,
+                    body,
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { signal: signal(10000) }
+                }
             );
             logger.success("Comment posted", { commentId: data.id, url: data.html_url });
             return data;
