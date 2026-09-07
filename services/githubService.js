@@ -35,7 +35,8 @@ export async function createGitHubService(installationId) {
                     owner,
                     repo,
                     pull_number: prNumber,
-                    headers: { "x-github-api-version": "2022-11-28" }
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { timeout: 10000 }
                 }
             );
 
@@ -53,7 +54,8 @@ export async function createGitHubService(installationId) {
                     owner,
                     repo,
                     pull_number: prNumber,
-                    headers: { "x-github-api-version": "2022-11-28" }
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { timeout: 10000 }
                 }
             );
 
@@ -71,7 +73,8 @@ export async function createGitHubService(installationId) {
                     owner,
                     repo,
                     pull_number: prNumber,
-                    headers: { "x-github-api-version": "2022-11-28" }
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { timeout: 10000 }
                 }
             );
 
@@ -90,7 +93,8 @@ export async function createGitHubService(installationId) {
                     repo,
                     issue_number: prNumber,
                     body,
-                    headers: { "x-github-api-version": "2022-11-28" }
+                    headers: { "x-github-api-version": "2022-11-28" },
+                    request: { timeout: 10000 }
                 }
             );
 

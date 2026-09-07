@@ -6,6 +6,13 @@ import { runLinters } from "./linterService.js";
 import { analyzeWithAI } from "./llmService.js";
 import logger from "../utils/logger.js";
 
+// Rejects after `ms` milliseconds with a clear timeout error.
+function rejectAfter(ms, label) {
+    return new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout: ${label} did not complete within ${ms}ms`)), ms)
+    );
+}
+
 
 export async function analyzePullRequest(payload) {
 
@@ -25,13 +32,16 @@ export async function analyzePullRequest(payload) {
     const github = await createGitHubService(installationId);
 
 
-    // Fetch PR data in parallel
+    // Fetch PR data in parallel — 15-second timeout guards against silent hangs
     logger.step("Fetching PR data from GitHub (parallel)");
 
-    const [pullRequest, files, commits] = await Promise.all([
-        github.getPullRequest(owner, repo, prNumber),
-        github.getPullRequestFiles(owner, repo, prNumber),
-        github.getPullRequestCommits(owner, repo, prNumber)
+    const [pullRequest, files, commits] = await Promise.race([
+        Promise.all([
+            github.getPullRequest(owner, repo, prNumber),
+            github.getPullRequestFiles(owner, repo, prNumber),
+            github.getPullRequestCommits(owner, repo, prNumber)
+        ]),
+        rejectAfter(15000, "GitHub parallel fetch")
     ]);
 
     logger.info("GitHub data fetched", {
