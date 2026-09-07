@@ -102,7 +102,7 @@ Briefly explain the estimate.
 Keep the final response concise and useful.
 `;
 
-    const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
     logger.step("Gemini — sending generate content request", {
         model,
