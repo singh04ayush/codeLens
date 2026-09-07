@@ -2,23 +2,35 @@ import { App } from "octokit";
 import logger from "../utils/logger.js";
 
 
-// Octokit App instance — created once and reused across all requests.
-// It handles JWT generation and installation token exchange internally.
-const octokitApp = new App({
-    appId: process.env.GITHUB_APP_ID,
-    privateKey: process.env.GITHUB_AUTH_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    webhooks: {
-        secret: process.env.GITHUB_WEBHOOK_SECRET
-    }
-});
+// Helper: creates a fresh AbortSignal that times out after `ms` milliseconds.
+// AbortSignal.timeout() is the correct octokit v5 cancellation mechanism —
+// the legacy `request: { timeout }` option is silently ignored in v5.
+function signal(ms) {
+    return AbortSignal.timeout(ms);
+}
 
 
 export async function createGitHubService(installationId) {
 
+    // ⚠️  Intentionally created INSIDE this function, not at module scope.
+    //
+    //     On Lambda (and similar serverless runtimes) the process is "frozen"
+    //     between invocations. A module-level Octokit App instance caches HTTP
+    //     connection state that becomes stale after thawing, causing every
+    //     subsequent `octokit.request()` to hang indefinitely.
+    //
+    //     Creating the App per-invocation ensures a fresh connection pool each
+    //     time and is cheap — the App constructor is synchronous.
+    const octokitApp = new App({
+        appId: process.env.GITHUB_APP_ID,
+        privateKey: process.env.GITHUB_AUTH_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        webhooks: {
+            secret: process.env.GITHUB_WEBHOOK_SECRET
+        }
+    });
+
     logger.step("createGitHubService — fetching installation token", { installationId });
 
-    // getInstallationOctokit returns a fully authenticated Octokit
-    // instance scoped to this installation — token refresh is automatic.
     const octokit = await octokitApp.getInstallationOctokit(installationId);
 
     logger.success("Installation token acquired");
@@ -36,7 +48,7 @@ export async function createGitHubService(installationId) {
                     repo,
                     pull_number: prNumber,
                     headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    request: { signal: signal(10000) }
                 }
             );
 
@@ -55,7 +67,7 @@ export async function createGitHubService(installationId) {
                     repo,
                     pull_number: prNumber,
                     headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    request: { signal: signal(10000) }
                 }
             );
 
@@ -74,7 +86,7 @@ export async function createGitHubService(installationId) {
                     repo,
                     pull_number: prNumber,
                     headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    request: { signal: signal(10000) }
                 }
             );
 
@@ -94,7 +106,7 @@ export async function createGitHubService(installationId) {
                     issue_number: prNumber,
                     body,
                     headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    request: { signal: signal(10000) }
                 }
             );
 
