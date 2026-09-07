@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import logger from "../utils/logger.js";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
@@ -101,6 +102,11 @@ Briefly explain the estimate.
 Keep the final response concise and useful.
 `;
 
+    logger.step("OpenAI — sending chat completion request", {
+        model: process.env.OPENAI_MODEL,
+        promptChars: prompt.length
+    });
+
     const response = await openai.chat.completions.create({
         model: process.env.OPENAI_MODEL,
 
@@ -116,5 +122,13 @@ Keep the final response concise and useful.
         ]
     });
 
-    return response.choices[0].message.content;
+    const result = response.choices[0].message.content;
+
+    logger.success("OpenAI response received", {
+        finishReason: response.choices[0].finish_reason,
+        responseChars: result?.length,
+        usage: response.usage
+    });
+
+    return result;
 }
