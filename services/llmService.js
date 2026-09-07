@@ -1,8 +1,8 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import logger from "../utils/logger.js";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+const genai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY
 });
 
 
@@ -102,32 +102,26 @@ Briefly explain the estimate.
 Keep the final response concise and useful.
 `;
 
-    logger.step("OpenAI — sending chat completion request", {
-        model: process.env.OPENAI_MODEL,
+    const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+
+    logger.step("Gemini — sending generate content request", {
+        model,
         promptChars: prompt.length
     });
 
-    const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL,
-
-        messages: [
-            {
-                role: "system",
-                content: "You are a senior software engineer specializing in code review, security, architecture and maintainability."
-            },
-            {
-                role: "user",
-                content: prompt
-            }
-        ]
+    const response = await genai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+            systemInstruction: "You are a senior software engineer specializing in code review, security, architecture and maintainability."
+        }
     });
 
-    const result = response.choices[0].message.content;
+    const result = response.text;
 
-    logger.success("OpenAI response received", {
-        finishReason: response.choices[0].finish_reason,
+    logger.success("Gemini response received", {
         responseChars: result?.length,
-        usage: response.usage
+        usage: response.usageMetadata
     });
 
     return result;

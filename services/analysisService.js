@@ -72,7 +72,7 @@ export async function analyzePullRequest(payload) {
 
 
     // AI analysis
-    logger.step("Sending data to OpenAI for review");
+    logger.step("Sending data to Gemini for review");
 
     const analysis = await analyzeWithAI({
         repository: `${owner}/${repo}`,
