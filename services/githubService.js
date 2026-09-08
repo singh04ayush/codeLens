@@ -1,10 +1,8 @@
 import { App } from "octokit";
-import axios from "axios";
 import logger from "../utils/logger.js";
 
 
-// Octokit App instance — created once and reused across all requests.
-// It handles JWT generation and installation token exchange internally.
+// Octokit App instance
 const octokitApp = new App({
     appId: process.env.GITHUB_APP_ID,
     privateKey: process.env.GITHUB_AUTH_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -19,14 +17,9 @@ export async function createGitHubService(installationId) {
     logger.step("createGitHubService — fetching installation token", { installationId });
 
     // getInstallationOctokit returns a fully authenticated Octokit
-    // instance scoped to this installation — token refresh is automatic.
     const octokit = await octokitApp.getInstallationOctokit(installationId);
-    const { token } = await octokit.auth({ type: "installation", installationId });
 
-    logger.success("Installation token acquired", { tokenPrefix: token.slice(0, 10) + "..." });
-
-    // Auth header used for every axios request.
-    const authHeader = { Authorization: `token ${token}` };
+    logger.success("Installation token acquired");
 
 
     return {
@@ -40,10 +33,10 @@ export async function createGitHubService(installationId) {
                     owner,
                     repo,
                     pull_number: prNumber,
-                    headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    headers: { "x-github-api-version": "2022-11-28" }
                 }
             );
+
             logger.debug("Pull request fetched", { title: data.title, state: data.state });
             return data;
         },
@@ -58,10 +51,10 @@ export async function createGitHubService(installationId) {
                     owner,
                     repo,
                     pull_number: prNumber,
-                    headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    headers: { "x-github-api-version": "2022-11-28" }
                 }
             );
+
             logger.debug("PR files fetched", { count: data.length });
             return data;
         },
@@ -76,10 +69,10 @@ export async function createGitHubService(installationId) {
                     owner,
                     repo,
                     pull_number: prNumber,
-                    headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    headers: { "x-github-api-version": "2022-11-28" }
                 }
             );
+
             logger.debug("PR commits fetched", { count: data.length });
             return data;
         },
@@ -95,10 +88,10 @@ export async function createGitHubService(installationId) {
                     repo,
                     issue_number: prNumber,
                     body,
-                    headers: { "x-github-api-version": "2022-11-28" },
-                    request: { timeout: 10000 }
+                    headers: { "x-github-api-version": "2022-11-28" }
                 }
             );
+
             logger.success("Comment posted", { commentId: data.id, url: data.html_url });
             return data;
         }

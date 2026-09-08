@@ -52,10 +52,7 @@ export async function handleWebhookPR(req, res) {
         } catch (error) {
 
             logger.error(`CodeLens analysis failed for PR #${prNumber}`, {
-                name: error.name,
                 message: error.message,
-                status: error.status ?? error.response?.status,
-                responseData: error.response?.data ?? error.response?.body,
                 stack: error.stack
             });
 

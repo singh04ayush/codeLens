@@ -1,23 +1,10 @@
 import { createGitHubService } from "./githubService.js";
+import { analyzeChanges } from "./changeAnalyzer.js";
+import { calculateRisk } from "./riskEngine.js";
+import { buildDependencyMap } from "./dependencyMap.js";
+import { runLinters } from "./linterService.js";
+import { analyzeWithAI } from "./llmService.js";
 import logger from "../utils/logger.js";
-
-// ─── DIAGNOSTIC MODE ──────────────────────────────────────────────────────────
-// All GitHub data fetching, static analysis, and LLM are bypassed.
-// We just post a hardcoded comment to verify:
-//   (a) createGitHubService works
-//   (b) createComment works
-// Once both log ✅, restore the full pipeline.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const HARDCODED_COMMENT = `## 🤖 CodeLens — Diagnostic Test
-
-This is a **hardcoded test comment** posted by CodeLens to verify the GitHub comment API is working end-to-end.
-
-> If you see this comment, the webhook → GitHub App → comment pipeline is healthy.
-> The full AI review pipeline will be restored once connectivity is confirmed.
-
----
-*CodeLens diagnostic mode — ${new Date().toISOString()}*`;
 
 
 export async function analyzePullRequest(payload) {
@@ -27,21 +14,98 @@ export async function analyzePullRequest(payload) {
     const repo = payload.repository.name;
     const prNumber = payload.pull_request.number;
 
-    logger.step("[DIAG] analyzePullRequest — DIAGNOSTIC MODE (skipping data fetch + LLM)", {
+    logger.step("analyzePullRequest — pipeline started", {
         repo: `${owner}/${repo}`,
         pr: prNumber,
         installationId
     });
 
-    // Step 1: authenticate
-    logger.step("[DIAG] Creating GitHub service...");
+
+    // GitHub service authenticated for this installation
     const github = await createGitHubService(installationId);
-    logger.success("[DIAG] GitHub service created");
 
-    // Step 2: post hardcoded comment — skip all data fetching & LLM
-    logger.step("[DIAG] Posting hardcoded comment to PR...");
-    await github.createComment(owner, repo, prNumber, HARDCODED_COMMENT);
-    logger.success(`[DIAG] ✅ Hardcoded comment posted on PR #${prNumber}`);
 
-    return { owner, repo, prNumber };
+    // Fetch PR data in parallel
+    logger.step("Fetching PR data from GitHub (parallel)");
+
+    const [pullRequest, files, commits] = await Promise.all([
+        github.getPullRequest(owner, repo, prNumber),
+        github.getPullRequestFiles(owner, repo, prNumber),
+        github.getPullRequestCommits(owner, repo, prNumber)
+    ]);
+
+    logger.info("GitHub data fetched", {
+        filesChanged: files.length,
+        commits: commits.length,
+        prTitle: pullRequest.title
+    });
+
+
+    // Static analysis
+    logger.step("Running static analysis");
+    const changeAnalysis = analyzeChanges(files);
+    logger.debug("Change analysis complete", {
+        areas: changeAnalysis.areas,
+        additions: changeAnalysis.additions,
+        deletions: changeAnalysis.deletions
+    });
+
+
+    // Risk calculation
+    logger.step("Calculating risk score");
+    const risk = calculateRisk(changeAnalysis);
+    logger.info("Risk calculated", { level: risk.level, score: risk.score, reasons: risk.reasons });
+
+
+    // Dependency map
+    logger.step("Building dependency map");
+    const dependencyMap = buildDependencyMap(files);
+    logger.debug("Dependency map built", { fileCount: Object.keys(dependencyMap).length });
+
+
+    // Linter detection
+    logger.step("Running linter detection");
+    const lintResults = await runLinters({ files });
+    logger.debug("Linter detection complete", {
+        linters: lintResults.map(l => `${l.name}:${l.status}`)
+    });
+
+
+    // AI analysis
+    logger.step("Sending data to Gemini for review");
+
+    const analysis = await analyzeWithAI({
+        repository: `${owner}/${repo}`,
+        title: pullRequest.title,
+        author: pullRequest.user.login,
+        description: pullRequest.body || "",
+        files,
+        commits,
+        changeAnalysis,
+        risk,
+        dependencyMap,
+        lintResults
+    });
+
+    logger.success("AI analysis received", {
+        responseLength: analysis?.length
+    });
+
+
+    // Post comment
+    logger.step("Posting CodeLens comment to PR");
+    await github.createComment(owner, repo, prNumber, analysis);
+    logger.success(`💬 CodeLens comment posted on PR #${prNumber}`);
+
+
+    return {
+        owner,
+        repo,
+        prNumber,
+        changeAnalysis,
+        risk,
+        dependencyMap,
+        lintResults,
+        analysis
+    };
 }
